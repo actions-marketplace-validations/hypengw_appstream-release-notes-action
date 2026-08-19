@@ -1,0 +1,52 @@
+name: AppStream Release Notes
+description: Convert one AppStream release description to Markdown release notes
+
+inputs:
+  file:
+    description: AppStream XML file or release fragment
+    required: true
+  version:
+    description: Release version, with or without a leading v
+    required: true
+  output-file:
+    description: Markdown output path, relative to the workspace when not absolute
+    required: false
+    default: ""
+
+outputs:
+  path:
+    description: Absolute path to the generated Markdown file
+    value: ${{ steps.convert.outputs.path }}
+
+runs:
+  using: composite
+  steps:
+    - id: convert
+      shell: bash
+      env:
+        INPUT_FILE: ${{ inputs.file }}
+        INPUT_VERSION: ${{ inputs.version }}
+        INPUT_OUTPUT_FILE: ${{ inputs.output-file }}
+      run: |
+        set -euo pipefail
+
+        if [[ -n "$INPUT_OUTPUT_FILE" ]]; then
+          output_file="$INPUT_OUTPUT_FILE"
+          if [[ "$output_file" != /* ]]; then
+            output_file="$GITHUB_WORKSPACE/$output_file"
+          fi
+        else
+          output_file="$(mktemp "${RUNNER_TEMP:-/tmp}/appstream-release-notes.XXXXXX.md")"
+        fi
+
+        python3 "$GITHUB_ACTION_PATH/appstream_release_notes.py" \
+          --file "$INPUT_FILE" \
+          --version "$INPUT_VERSION" \
+          --output "$output_file"
+
+        echo "path=$output_file" >> "$GITHUB_OUTPUT"
+        cat "$output_file"
+
+branding:
+  icon: file-text
+  color: blue
